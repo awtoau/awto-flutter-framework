@@ -1,0 +1,17 @@
+name: awto_framework_example
+description: Example app demonstrating the awto_flutter_framework.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  awto_flutter_framework:
+    path: ../
+
+flutter:
+  uses-material-design: true
