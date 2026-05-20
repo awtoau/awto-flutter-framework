@@ -56,11 +56,15 @@ abstract class LogSink {
 }
 
 /// Sink that writes to the Dart console via [print].
+///
+/// The `avoid_print` lint is suppressed here intentionally — this sink's sole
+/// purpose is to write to the console.
 class ConsoleSink implements LogSink {
   const ConsoleSink();
 
   @override
-  void onRecord(LogRecord record) => print(record.toString()); // ignore: avoid_print
+  // ignore: avoid_print
+  void onRecord(LogRecord record) => print(record.toString());
 
   @override
   void dispose() {}
@@ -138,11 +142,19 @@ class AwtoLogger {
       _sinks.add(memory);
       _memoryAdded = true;
     }
+    // Recreate the controller if the previous one was closed (e.g. after
+    // disposeAll()), so that logging works again after reconfiguration.
+    if (_controller.isClosed) {
+      _controller = StreamController<LogRecord>.broadcast();
+    }
   }
 
   /// The stream of all records emitted by every [AwtoLogger] instance.
+  ///
+  /// The stream controller is recreated each time [configure] is called so
+  /// that logging can resume after [disposeAll] has been called.
   static Stream<LogRecord> get stream => _controller.stream;
-  static final StreamController<LogRecord> _controller =
+  static StreamController<LogRecord> _controller =
       StreamController<LogRecord>.broadcast();
 
   // ── Per-instance logging methods ───────────────────────────────────────────

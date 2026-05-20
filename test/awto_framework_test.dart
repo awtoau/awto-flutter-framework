@@ -268,7 +268,7 @@ void main() {
     test('scan() throws UnimplementedError without subclassing', () async {
       final wifi = WifiNode();
       await wifi.start();
-      expect(() async => wifi.scan(), throwsA(isA<UnimplementedError>()));
+      await expectLater(wifi.scan(), throwsA(isA<UnimplementedError>()));
       await wifi.stop();
     });
   });

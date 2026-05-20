@@ -33,7 +33,7 @@ class AwtoShapesPainter extends CustomPainter {
     this.strokeColor,
     this.strokeWidth = 2.0,
     this.sides = 5,
-    this.innerRadiusRatio = 0.5,
+    this.innerRadiusRatio = 0.4,
     this.rotationAngle = 0.0,
   });
 
