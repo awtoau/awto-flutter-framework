@@ -19,12 +19,10 @@ void runTimerCommand(ArgResults results) {
   print('');
 
   cubit.stream.listen((state) {
-    stdout.write('\rTime: ${state.formatted}');
+    stdout.writeln('Time: ${state.formatted}');
     if (state.laps.isNotEmpty && enableLaps) {
-      stdout.write(' | Laps: ${state.laps.length}');
+      stdout.writeln(' Laps: ${state.laps.length}');
     }
-    stdout.write('  ');
-    stdout.writeCharCodes([8]); // Move cursor back
   });
 
   while (true) {

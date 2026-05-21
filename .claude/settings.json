@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git -C /home/dan/git/awto-flutter-framework log --oneline --all)",
+      "Bash(git -C /home/dan/git/awto-flutter-framework remote -v)",
+      "Bash(chmod +x /home/dan/git/awto-flutter-framework/scripts/run_tests.py /home/dan/git/awto-flutter-framework/scripts/check_deps.py)",
+      "Bash(chmod +x /home/dan/git/awto-flutter-framework/awto.py)",
+      "Bash(python3 awto.py check-deps)",
+      "Bash(python3 awto.py test --app all)"
+    ]
+  }
+}

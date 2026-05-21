@@ -124,7 +124,9 @@ void _printNodeMap(List<PortInfo> ports) {
     grouped.putIfAbsent(devicePart, () => []).add(port);
   }
 
-  for (final (hub, hubPorts) in grouped.entries) {
+  for (final entry in grouped.entries) {
+    final hub = entry.key;
+    final hubPorts = entry.value;
     print('├── $hub');
     for (var i = 0; i < hubPorts.length; i++) {
       final port = hubPorts[i];

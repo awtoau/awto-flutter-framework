@@ -38,7 +38,6 @@ void main() {
         isA<FetchLoading>(),
         isA<FetchFailure>(),
       ],
-      timeout: const Duration(seconds: 15),
     );
   });
 }
