@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-deps:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: latest
+      - name: Check dependencies
+        run: python3 scripts/check_deps.py
+
+  cli-tests:
+    name: CLI Tests
+    runs-on: ubuntu-latest
+    needs: check-deps
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+      - name: Get CLI dependencies
+        run: cd apps/cli && dart pub get
+      - name: Run CLI tests
+        run: cd apps/cli && dart test
+
+  gui-tests:
+    name: GUI Tests
+    runs-on: ubuntu-latest
+    needs: check-deps
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: latest
+      - name: Get GUI dependencies
+        run: cd apps/gui && flutter pub get
+      - name: Run GUI tests
+        run: cd apps/gui && flutter test
+
+  analyze:
+    name: Code Analysis
+    runs-on: ubuntu-latest
+    needs: check-deps
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: latest
+      - name: Analyze CLI
+        run: cd apps/cli && dart analyze
+      - name: Analyze GUI
+        run: cd apps/gui && flutter analyze
+
+  test-all:
+    name: Test All (Python Runner)
+    runs-on: ubuntu-latest
+    needs: [cli-tests, gui-tests, analyze]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: latest
+      - name: Run all tests with Python runner
+        run: python3 scripts/run_tests.py --app all
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: tmp/test-results.log
