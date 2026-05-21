@@ -101,10 +101,21 @@ format-check:
 	@echo "✓ Code formatting is correct"
 
 # Build targets
+build: build-full
+build-full:
+	./scripts/build-deploy.sh
+
 build-cli:
-	@echo "Building CLI executable..."
-	cd apps/cli && dart compile exe lib/main.dart -o ../build/awto_cli_demo && cd ..
-	@echo "✓ Built: build/awto_cli_demo"
+	./scripts/build-deploy.sh --app cli
+
+build-gui:
+	./scripts/build-deploy.sh --app gui
+
+build-debug:
+	./scripts/build-deploy.sh --type debug
+
+build-json:
+	./scripts/build-deploy.sh --json
 
 build-gui-apk:
 	@echo "Building GUI APK..."

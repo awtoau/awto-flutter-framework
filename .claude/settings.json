@@ -87,7 +87,8 @@
       "Bash(flutter *)",
       "Bash(dart *)",
       "Bash(code *)",
-      "Bash(code-insiders *)"
+      "Bash(code-insiders *)",
+      "Bash(/home/dan/git/awto-flutter-framework/scripts/build-deploy.sh --help)"
     ]
   }
 }
