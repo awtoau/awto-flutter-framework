@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
 awto-flutter-framework control script.
-Single entry point for all project operations: testing, checking deps, running apps, etc.
+Single entry point for all project operations: testing, checking deps, building, running apps, etc.
 """
 
 import subprocess
 import sys
 import os
+import json
+import time
 from pathlib import Path
 from datetime import datetime
 import argparse
@@ -18,20 +20,52 @@ GUI_DIR = REPO_ROOT / "apps" / "gui"
 LOG_DIR = REPO_ROOT / "tmp"
 LOG_FILE = LOG_DIR / "awto.log"
 
+# Global output config
+OUTPUT_JSON = False
+NO_COLOR = False
+JSON_OUTPUT = {}
+
 
 def log_message(msg: str, level: str = "INFO"):
     """Log message to console and file."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}] [{level}] {msg}"
-    print(log_entry)
+
+    if not OUTPUT_JSON:
+        print(log_entry)
 
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     with open(LOG_FILE, "a") as f:
         f.write(log_entry + "\n")
 
+def print_colored(msg: str, color: str = ""):
+    """Print colored message if colors enabled."""
+    if OUTPUT_JSON or NO_COLOR:
+        print(msg)
+    else:
+        colors = {
+            "green": "\033[0;32m",
+            "red": "\033[0;31m",
+            "yellow": "\033[1;33m",
+            "blue": "\033[0;34m",
+            "reset": "\033[0m",
+        }
+        if color in colors:
+            print(f"{colors[color]}{msg}{colors['reset']}")
+        else:
+            print(msg)
 
-def run_command(cmd: list, cwd: Path, label: str = "") -> bool:
-    """Run a command and return success status."""
+def print_section(title: str):
+    """Print section header."""
+    if OUTPUT_JSON:
+        return
+    print("\n" + "=" * 60)
+    print(f"{title}")
+    print("=" * 60)
+
+
+def run_command(cmd: list, cwd: Path, label: str = "", capture_output: bool = False) -> tuple[bool, str]:
+    """Run a command and return (success status, output)."""
     cmd_str = " ".join(cmd)
     log_message(f"$ {cmd_str} (in {cwd.name})", "RUN")
 
@@ -39,16 +73,18 @@ def run_command(cmd: list, cwd: Path, label: str = "") -> bool:
         result = subprocess.run(
             cmd,
             cwd=cwd,
-            capture_output=False,
+            capture_output=capture_output,
+            text=True,
             timeout=300,
         )
-        return result.returncode == 0
+        output = result.stdout + result.stderr if capture_output else ""
+        return (result.returncode == 0, output)
     except subprocess.TimeoutExpired:
         log_message(f"TIMEOUT: {label} (300s exceeded)", "ERROR")
-        return False
+        return (False, "")
     except Exception as e:
         log_message(f"ERROR: {label} - {e}", "ERROR")
-        return False
+        return (False, "")
 
 
 # ============================================================================
@@ -272,11 +308,96 @@ def cmd_clean(args):
 
 
 # ============================================================================
+# BUILD
+# ============================================================================
+
+
+def cmd_build(args):
+    """Build applications."""
+    global JSON_OUTPUT
+    start_time = time.time()
+    JSON_OUTPUT = {"status": "success", "timestamp": datetime.utcnow().isoformat() + "Z"}
+
+    print_section("Building" if not OUTPUT_JSON else "")
+
+    results = {}
+
+    # Build CLI
+    if args.app in ["cli", "all"]:
+        log_message("Building CLI app...", "BUILD")
+        if OUTPUT_JSON:
+            pass
+        else:
+            print("Building CLI app (release)...")
+
+        cli_start = time.time()
+        success, _ = run_command(
+            ["dart", "compile", "exe", "lib/main.dart", "-o", "build/awto_cli_demo"],
+            CLI_DIR,
+            "CLI compile",
+        )
+        cli_time = time.time() - cli_start
+
+        if success:
+            print_colored("✓ CLI built in {:.1f}s".format(cli_time), "green")
+            log_message(f"CLI built in {cli_time:.1f}s", "OK")
+            results["cli"] = True
+            JSON_OUTPUT["cli_build_time_seconds"] = int(cli_time)
+        else:
+            print_colored("✗ CLI build failed", "red")
+            log_message("CLI build failed", "ERROR")
+            results["cli"] = False
+            JSON_OUTPUT["status"] = "failed"
+
+    # Build GUI
+    if args.app in ["gui", "all"]:
+        log_message("Building GUI app...", "BUILD")
+        if OUTPUT_JSON:
+            pass
+        else:
+            print("Building GUI APK (release)...")
+
+        gui_start = time.time()
+        success, _ = run_command(
+            ["flutter", "build", "apk", "--release"],
+            GUI_DIR,
+            "GUI build",
+        )
+        gui_time = time.time() - gui_start
+
+        if success:
+            print_colored("✓ GUI built in {:.1f}s".format(gui_time), "green")
+            log_message(f"GUI built in {gui_time:.1f}s", "OK")
+            results["gui"] = True
+            JSON_OUTPUT["gui_build_time_seconds"] = int(gui_time)
+        else:
+            print_colored("✗ GUI build failed", "red")
+            log_message("GUI build failed", "ERROR")
+            results["gui"] = False
+            JSON_OUTPUT["status"] = "failed"
+
+    total_time = time.time() - start_time
+    JSON_OUTPUT["total_build_time_seconds"] = int(total_time)
+
+    if not OUTPUT_JSON:
+        print_section("Build Summary")
+        for name, passed in results.items():
+            status = "✓ PASS" if passed else "✗ FAIL"
+            print(f"{name}: {status}")
+        print(f"\nTotal time: {total_time:.1f}s")
+        print(f"Log file: {LOG_FILE}")
+
+    return 0 if all(results.values()) else 1
+
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
 
 def main():
+    global OUTPUT_JSON, NO_COLOR
+
     parser = argparse.ArgumentParser(
         description="awto-flutter-framework control script",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -285,10 +406,24 @@ Examples:
   %(prog)s check-deps                    # Check dependencies
   %(prog)s test --app cli                # Test CLI app only
   %(prog)s test --app all --analyze      # Test all and analyze
+  %(prog)s build --app cli               # Build CLI app
+  %(prog)s build --json                  # Build with JSON output
   %(prog)s run --app cli counter         # Run CLI counter command
   %(prog)s run --app gui                 # Run GUI app
   %(prog)s clean                         # Clean build artifacts
         """,
+    )
+
+    # Global flags
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output in JSON format (machine-readable)",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -312,6 +447,16 @@ Examples:
         help="Run code analysis (default: true)",
     )
     test_parser.set_defaults(func=cmd_test)
+
+    # build command
+    build_parser = subparsers.add_parser("build", help="Build applications")
+    build_parser.add_argument(
+        "--app",
+        choices=["cli", "gui", "all"],
+        default="all",
+        help="Which app to build (default: all)",
+    )
+    build_parser.set_defaults(func=cmd_build)
 
     # run command
     run_parser = subparsers.add_parser("run", help="Run an app")
@@ -339,8 +484,15 @@ Examples:
 
     args = parser.parse_args()
 
+    # Set global flags
+    OUTPUT_JSON = args.json
+    NO_COLOR = args.no_color
+
     if hasattr(args, "func"):
-        return args.func(args)
+        result = args.func(args)
+        if OUTPUT_JSON and JSON_OUTPUT:
+            print(json.dumps(JSON_OUTPUT, indent=2))
+        return result
     else:
         parser.print_help()
         return 0
